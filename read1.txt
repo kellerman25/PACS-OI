@@ -1,0 +1,9 @@
+read.py
+
+working on WILL 1-28 data:
+x: wavelengths
+y1: non-reduced flux
+y2: continuum fit
+y3: flux with removed continuum
+
+

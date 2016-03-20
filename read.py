@@ -11,9 +11,26 @@ import glob,os
 c = 299792458 #m/s
 
 
-output = open('PACS_OI.dat','w')
-print >> output,'#|  name      |   F_gauss   |   F_total  |    3*sigma   |     L_wing   |    R_wing    |  tag  |'
-print >> output,'#|   all      :    W/cm-2'
+#obs = 'digit'
+obs = 'will'
+lab_wvl = 63.18
+
+if obs == 'digit':
+	output = open('OI_digit.dat','w')
+	output2 = open('OI_digit_short.dat','w')
+	fwhm_start = 63.00/1601.0513  #digit
+	x1 = 62.4
+	x2 = 63.8
+if obs == 'will':	
+	output = open('OI_will.dat','w')
+	output2 = open('OI_will_short.dat','w')
+	fwhm_start = 63.00/3405.0922	#will
+	x1 = 63.1
+	x2 = 63.5
+
+
+print >> output,'#|  name                    |   F_gauss   |   F_total  |    3*sigma   |     L_wing   |    R_wing    |  tag  |'
+print >> output,'#|   all                    :    W/cm-2'
 
 
 
@@ -39,8 +56,14 @@ for f in fitslist:
 
 
 
+
+
+
+
+
+
 #choosing only OI line
-	mask = (x[:] > 62) & (x[:] < 65) 
+	mask = (x[:] > x1) & (x[:] < x2) 
 	x = x[mask]
 	y = y3[mask]
 #remove repeating wavelengths
@@ -53,13 +76,17 @@ for f in fitslist:
 
 #calculating instrumental fwhm, 
 #here not automatic, just taken from the file
-	fwhm = 63.00/3405.0922
-	lab_wvl = 63.18
-	print len(x)
+
+
+
+
+
+
+
 
 
 #channel size
-	dist = np.empty(200)
+	dist = np.empty(600)
 	for ii in range(len(x)-1):
 		dist[ii] = x[ii+1]-x[ii]
 	dist = dist[0:ii]
@@ -75,14 +102,15 @@ for f in fitslist:
 	vel_res = c*1e-3*chan_size/lab_wvl		
 	print 'Velocity resolution:',vel_res
 	vel_limit = 300*lab_wvl/(c*1e-3)
+	vel_50 = 60*lab_wvl/(c*1e-3)
 	print '200 km/s limit:', vel_limit
 
 
 #setting gauss parameters
-	gmod.set_param_hint('amp',value=max(y), min=max(y)-1.5, max=max(y)+1.5) #careful???!!!
+	gmod.set_param_hint('amp',value=max(y), vary=False) #careful???!!!
 	gmod.set_param_hint('cen',value=63.18)
 	gmod.set_param_hint('level',value=0.0, vary=False) 
-	gmod.set_param_hint('fwhm', value = fwhm, vary=False) #fixed
+	gmod.set_param_hint('fwhm', value = fwhm_start, vary=False) #fixed
 	gmod.make_params()
 #parameters with fixed fwhm and very constrained amplitude
 #basically we let the fitting to play only with center
@@ -105,24 +133,29 @@ for f in fitslist:
 #residual of data-gauss
 	residual=y-result.best_fit
 
-#rms
-	mask_rms = (x[:] > cen+vel_limit) | (x[:] < cen-vel_limit)
-	std = np.std(y[mask_rms])
-	std_integrated = std*chan_size*1e-4*c/(cen**2)
-	#should be multiplied by number of channels
+
 
 #right wing
-	mask_right = ((x[:] < cen+vel_limit) & (x[:] > cen))
+	mask_right = ((x[:] < cen+vel_limit) & (x[:] > cen+vel_50))
 	sum_right = sum(residual[mask_right])*chan_size*1e-4*c/(cen**2) #Jy*m
 
 #left wing
-	mask_left = ((x[:] > cen-vel_limit) & (x[:] < cen))
+	mask_left = ((x[:] > cen-vel_limit) & (x[:] < cen-vel_50))
 	sum_left = sum(residual[mask_left])*chan_size*1e-4*c/(cen**2) #Jy*m
 
 #integrated channels sum
 	mask_sum = ((x[:] > cen-vel_limit) & (x[:] < cen+vel_limit))
 	sum_sum = sum(y[mask_sum])*chan_size*1e-4*c/(cen**2) #jednostka???
 
+#rms
+	mask_rms = (x[:] > cen+vel_limit) | (x[:] < cen-vel_limit)
+	std = np.std(y[mask_rms])
+	y_rms = y[mask_rms]
+	x_rms = x[mask_rms]
+	mask_rms2 = (y_rms < 2.5*std)
+	std = np.std(y_rms[mask_rms2])
+	std_integrated = std*chan_size*1e-4*c/(cen**2)
+	#should be multiplied by number of channels
 
 
 #int_std = std*len1/3.0*chan_size*1e-6 
@@ -130,7 +163,7 @@ for f in fitslist:
 #int_std = int_std*1e-4 #W/cm-2
 				
 #for smooth gauss on the plot
-	xx = np.linspace(63.1,63.5,num=1000)
+	xx = np.linspace(x1,x2,num=1000)
 
 	tag = ''
 	if 3*std_integrated<sum_left: 
@@ -160,6 +193,11 @@ for f in fitslist:
 	fig = plt.figure()
 	ax = fig.add_subplot(111)
 
+
+	ax.set_xlabel(r'$\lambda \ (\mu m)$',size="x-large")
+	ax.set_ylabel(r'$F_\lambda\ (Jy)$',size="x-large")
+
+
 	bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
 
 	ax.text(0.7,0.5,'3$\sigma$ = '+str(3*std_integrated)[0:8], fontsize=10,transform=ax.transAxes,bbox=bbox_props)
@@ -168,7 +206,7 @@ for f in fitslist:
 	ax.text(0.7,0.65,'gauss = '+str(gaussfield)[0:8], fontsize=10,transform=ax.transAxes,bbox=bbox_props)
 	ax.text(0.7,0.7,'sum = '+str(sum_sum)[0:8], fontsize=10,transform=ax.transAxes,bbox=bbox_props)
 
-	ax.plot(x[mask_rms],y[mask_rms],'ko')
+	ax.plot(x_rms[mask_rms2],y_rms[mask_rms2],'ko')
 	ax.plot(x[mask_left],residual[mask_left],'bo')
 	ax.plot(x[mask_right],residual[mask_right],'co')
 	ax.plot(x,y,drawstyle='steps-mid')
@@ -177,14 +215,16 @@ for f in fitslist:
 #ax.plot(x,result.best_fit)
 	ax.plot(x,residual,drawstyle='steps-mid')
 
-	figname1 = name+'.png'
-	fig.show()
+	figname1 = name+'.eps'
+	#fig.show()
 	fig.savefig(figname1)
 	fig.clf()
+	plt.close()
 
 
 	
 
-	print >> output, "%12s    %10.6f    %10.6f    %10.6f    %10.6f    %10.6f    %6s" %(name,gaussfield, sum_sum, 3*std_integrated, sum_left, sum_right,tag)
+	print >> output, "%25s    %10.6f    %10.6f    %10.6f    %10.6f    %10.6f    %6s" %(name,gaussfield, sum_sum, 3*std_integrated, sum_left, sum_right,tag)
+	print >> output2, "%25s %6s" %(name, tag)
 
 output.close()

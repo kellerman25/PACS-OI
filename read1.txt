@@ -1,0 +1,21 @@
+read.py
+
+working on WILL 1-28 data:
+x: wavelengths
+y1: non-reduced flux
+y2: continuum fit
+y3: flux with removed continuum
+
+obs variable digit/wish -> different fwhm value
+How exactly obtain instrumental fwhm
+
+Obliczamy residual dane-gauss(fixed: fwhm, level, amplituda) i sumujemy wartości z przedziału 60-300 km.
+Błąd: standard deviation (z punktów odstających nie więcej niż 2.5 sigma) * rozmiar kanału.
+Detekcja: >3*error
+
+
+Opis procedury:
+Dopasowuję gauss instrumentalny (z zafiksowanymi wartościami: fhwm, zero level, amplituda), a więc de facto jedyne co pozwalamy dopasować to położenie centrum linii. Następnie obliczam residual po odjęciu gaussa od widma. Z tego obliczam sumę kanałów z przedziału 60-300 km/s z prawej i lewej strony. Porównuję to z błędem i dla detekcji 3*error oznaczam jako rzeczywistą emisję w skrzydłach. 
+Błąd jest wyznaczany z odchylenia standardowego pomnożonego przez szerokość kanału (nie mnożę razy ilość kanałów). Przy obliczaniu błędu nie uwzględniam punktów powyżej 2.5 sigma.
+
+
